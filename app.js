@@ -39,9 +39,9 @@
     ['ECON 503','Economics in a Global Environment','Scott Gilpatric & Robert Cobb'],
     ['BZAN 504','Supply Chain Models','Sean Willems'],
     ['BUAD 583','AI Fluency and Strategy for Managers','David Maslar'],
-    ['MARK 538','',''],
-    ['Course 14','Add course information',''],
-    ['Course 15','Add course information','']
+    ['MARK 538','','Alex Zablah (Course Champion) & Aaron Garvey'],
+    ['MGT 595','','Kurt Jacobs'],
+    ['MGT 596','','Jason Strickling']
   ];
 
   const $ = (selector) => document.querySelector(selector);
@@ -70,6 +70,39 @@
     const hist=Array.isArray(t.history) ? t.history.slice(-100).filter(h=>h&&typeof h==='object').map(h=>({id:clamp(h.id||uid(),90),at:clamp(h.at,50),total:Number(h.total)||0,counts:Object.fromEntries(Object.keys(STATUS_DATA).map(k=>[k,Math.max(0,Number(h.counts?.[k])||0)]))})) : [];
     return {id:clamp(t.id||uid(),90),name:clamp(t.name||`Term ${i+1}`,100),semester:clamp(t.semester||t.name,80),program:clamp(t.program,80),courses,createdAt:clamp(t.createdAt,50)||new Date().toISOString(),updatedAt:clamp(t.updatedAt,50)||new Date().toISOString(),hasCompletedCheckin:Boolean(t.hasCompletedCheckin),baselineDismissed:Boolean(t.baselineDismissed),baseline:t.baseline&&typeof t.baseline==='object' ? Object.fromEntries(Object.keys(STATUS_DATA).map(k=>[k,Math.max(0,Number(t.baseline[k])||0)])) : null,history:hist};
   }
+  // Repair the original 15-course Spring 2027 starter roster without replacing
+  // existing course submissions, saved notes, check-in history, or user edits.
+  function reconcileSpring2027Roster(terms) {
+    const t = terms.find(term => term.id === 'spring-2027-omba');
+    if (!t) return false;
+    let changed = false;
+    seedRows.forEach(([code,title,instructor],i) => {
+      const c = t.courses.find(course => course.id === `course-${i+1}`);
+      if (!c) return;
+      // The first release included two placeholder rows for MGT 595 and MGT 596.
+      if (i >= 13 && c.code === `Course ${i+1}`) {
+        if (t.courses.some(other => other !== c && other.code === code)) return;
+        c.code = code;
+        c.title = title;
+        c.instructor = instructor;
+        changed = true;
+        return;
+      }
+      if (c.code !== code) return; // Don't overwrite a repurposed course.
+      if (!c.title && title) { c.title = title; changed = true; }
+      // Only amend blank/previously seeded MARK 538 faculty names; preserve custom edits.
+      if (i === 12) {
+        const old = c.instructor.trim();
+        if (!old || /^Alex Zablah(?: \(Course Champion\))?(?: & Aaron Garvey)?$/.test(old)) {
+          if (c.instructor !== instructor) { c.instructor = instructor; changed = true; }
+        }
+      } else if (!c.instructor && instructor) {
+        c.instructor = instructor;
+        changed = true;
+      }
+    });
+    return changed;
+  }
   function loadStore() {
     try {
       const saved=localStorage.getItem(KEY);
@@ -78,7 +111,11 @@
       if(!raw || !Array.isArray(raw.terms)) return defaultStore();
       const terms=raw.terms.slice(0,50).map(normalizeTerm).filter(Boolean);
       if(!terms.length) return defaultStore();
-      return {schemaVersion:1,terms,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id};
+      const next={schemaVersion:1,terms,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id};
+      if (reconcileSpring2027Roster(terms)) {
+        try { localStorage.setItem(KEY, JSON.stringify(next)); } catch (_) { /* leave loaded data intact */ }
+      }
+      return next;
     } catch(e) { return defaultStore(); }
   }
   function persist() {
@@ -167,7 +204,7 @@
   function exportJSON(){download('term-prep-backup.json',JSON.stringify(store,null,2)+'\n','application/json');toast('Backup exported.');}
   const csvCell=s=>`"${String(s??'').replace(/"/g,'""')}"`;
   function exportCSV(){const t=currentTerm();const columns=['Term','Course','Title','Instructor','Syllabus','Import version','Due dates','Live sessions','Overall status','Canvas link','Notes'];const lines=[columns.map(csvCell).join(',')];t.courses.forEach(c=>lines.push([t.name,c.code,c.title,c.instructor,...FIELDS.map(f=>c.fields[f.key]),STATUS_DATA[statusFor(c)].label,c.canvas,c.notes].map(csvCell).join(',')));download(`${filenamePart(t.name)}-status.csv`,'\ufeff'+lines.join('\r\n'),'text/csv;charset=utf-8');toast('CSV exported.');}
-  async function importJSON(file){if(!file)return;if(file.size>3*1024*1024){toast('Backup exceeds the 3 MB size limit.');return;}try{const raw=JSON.parse(await file.text());if(!raw||!Array.isArray(raw.terms)||raw.terms.length<1){throw new Error('Invalid backup');}const terms=raw.terms.slice(0,50).map(normalizeTerm).filter(Boolean);if(!terms.length)throw new Error('No valid terms');if(!confirm(`Import ${terms.length} term(s)? This will replace the data saved in this browser. Export a backup first if needed.`))return;store={schemaVersion:1,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id,terms};persist();$('#course-search').value='';$('#directory-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Backup imported successfully.');}catch(e){toast('This file is not a valid Term Prep backup.');}finally{$('#import-file').value='';}}
+  async function importJSON(file){if(!file)return;if(file.size>3*1024*1024){toast('Backup exceeds the 3 MB size limit.');return;}try{const raw=JSON.parse(await file.text());if(!raw||!Array.isArray(raw.terms)||raw.terms.length<1){throw new Error('Invalid backup');}const terms=raw.terms.slice(0,50).map(normalizeTerm).filter(Boolean);if(!terms.length)throw new Error('No valid terms');reconcileSpring2027Roster(terms);if(!confirm(`Import ${terms.length} term(s)? This will replace the data saved in this browser. Export a backup first if needed.`))return;store={schemaVersion:1,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id,terms};persist();$('#course-search').value='';$('#directory-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Backup imported successfully.');}catch(e){toast('This file is not a valid Term Prep backup.');}finally{$('#import-file').value='';}}
 
   // Event wiring
   $$('.side-link').forEach(el=>el.addEventListener('click',()=>showView(el.dataset.view)));

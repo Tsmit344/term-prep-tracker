@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8fa">
+  <meta name="description" content="A term-preparation tracker with a guided course check-in workflow and live overview dashboard.">
+  <title>Term Prep | Digital Learning</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="Term Prep home">
+        <span class="brand-mark" aria-hidden="true"><span class="brand-diamond"></span></span>
+        <span class="brand-wordmark"><strong>DIGITAL LEARNING</strong><small>TERM PREP WORKSPACE</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="side-nav" aria-label="Main navigation">
+        <button type="button" data-view="dashboard" class="side-link active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></button>
+        <button type="button" data-view="courses" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>All Courses</span><span class="nav-count" id="nav-course-count">15</span></button>
+        <button type="button" data-view="history" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg><span>Check-in History</span></button>
+      </nav>
+      <div class="side-label term-label">ACTIVE TERM</div>
+      <div class="term-box">
+        <label for="term-select" class="sr-only">Select active term</label>
+        <select id="term-select" aria-label="Select active term"></select>
+        <button type="button" class="new-term" id="new-term" title="Create a new term" aria-label="Create a new term">+</button>
+      </div>
+      <div class="side-bottom">
+        <div class="helper-panel"><div class="helper-icon">✦</div><strong>A clearer way to prep.</strong><p>One place for every course, update, and follow-up.</p></div>
+        <div class="side-footer">Built for Digital Learning <span>•</span> v1.0</div>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div class="breadcrumbs"><button type="button" id="mobile-menu" aria-label="Open navigation" class="mobile-menu"><span>☰</span></button><span>Workspace</span><span class="crumb-separator">/</span><strong id="breadcrumb-name">Dashboard</strong></div>
+        <div class="toolbar">
+          <span class="saving-indicator" id="save-indicator"><span class="save-dot"></span> Saved in this browser</span>
+          <div class="menu-wrap"><button type="button" class="btn btn-ghost" id="tools-button" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M4 17v3h16v-3"/></svg><span>Export / Import</span></button>
+            <div class="tool-menu hidden" id="tools-menu">
+              <button type="button" id="export-json">Export backup (.json)<small>All terms, notes, and history</small></button>
+              <button type="button" id="export-csv">Export current term (.csv)<small>Spreadsheet-friendly report</small></button>
+              <button type="button" id="import-json">Import backup (.json)<small>Replaces saved workspace data</small></button>
+              <button type="button" id="print-report">Print dashboard<small>Printable status overview</small></button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" id="start-checkin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Start Check-in</button>
+        </div>
+      </header>
+
+      <main id="main-content" class="content" tabindex="-1">
+        <div id="dashboard-view">
+          <div class="page-intro">
+            <div class="eyebrow"><span class="eyebrow-line"></span> TERM PREPARATION OVERVIEW</div>
+            <div class="intro-row">
+              <div><h1 id="page-title">Spring 2027 <em>OMBA</em></h1><p class="page-description">Your course preparations, submissions, and next steps — all in one place.</p><div class="meta-row"><span id="last-updated">Last updated: October 30, 2026</span><span class="meta-bullet">•</span><span id="course-total">15 courses</span></div></div>
+              <div class="term-chip"><span class="chip-icon">◌</span><div><strong id="term-chip-title">Spring 2027</strong><small>Active term</small></div></div>
+            </div>
+          </div>
+          <div id="baseline-banner" class="baseline-banner"><span class="baseline-icon">i</span><span><strong>Previous overall update:</strong> The 1 complete / 6 partial / 8 none totals are preserved below as your last reported snapshot. Individual submission details still need their first check-in to verify and connect them to courses.</span><button type="button" id="dismiss-baseline" aria-label="Dismiss previous update notice">×</button></div>
+          <div class="section-heading"><div><h2>Overall Progress</h2><p id="progress-subheading">A quick look at how your courses are moving along.</p></div><span class="section-date" id="overview-date"></span></div>
+          <div class="stats-grid" id="stats-grid" aria-label="Overall progress statistics"></div>
+          <section class="card progress-card" aria-label="Submission progress by course">
+            <div class="card-heading"><div><h3>Submission progress by course</h3><p id="chart-subtitle">15 total courses</p></div><div class="chart-fraction" id="chart-fraction">1 of 15 complete</div></div>
+            <div class="stacked-progress" id="progress-bar" role="img" aria-label="Progress bar"></div>
+            <div class="chart-legend" id="chart-legend"></div>
+          </section>
+          <div class="section-heading section-heading-table"><div><h2>Complete Course Tracker</h2><p>Track every requirement and what is still outstanding.</p></div><button type="button" class="btn btn-outline" id="add-course"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add Course</button></div>
+          <section class="card table-card" aria-label="All course submissions">
+            <div class="table-toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 4.8 4.8"/></svg><input type="search" id="course-search" placeholder="Search courses or instructors…" aria-label="Search courses or instructors"></div><div class="table-controls"><label for="filter-status" class="sr-only">Filter by status</label><select id="filter-status"><option value="all">All statuses</option><option value="complete">Complete</option><option value="partial">Partial</option><option value="none">None</option><option value="verify">To verify</option><option value="unreviewed">Not checked</option></select></div></div>
+            <div class="table-overflow"><table class="course-table"><thead><tr><th>COURSE / INSTRUCTOR</th><th>SYLLABUS</th><th>IMPORT VERSION</th><th>DUE DATES</th><th>LIVE SESSIONS</th><th>STATUS</th><th aria-label="Open course check-in"></th></tr></thead><tbody id="course-tbody"></tbody></table></div>
+            <div class="table-footer"><span id="table-count">Showing 15 of 15 courses</span><span>✓ Received <span class="divider-dot">•</span> — Missing <span class="divider-dot">•</span> N/A Not required <span class="divider-dot">•</span> ? Clarify</span></div>
+          </section>
+          <div class="bottom-note"><span>✦</span> At the end of each check-in, your overview and course-by-course status refresh automatically.</div>
+        </div>
+
+        <div id="courses-view" class="hidden">
+          <div class="page-intro"><div class="eyebrow"><span class="eyebrow-line"></span> COURSE DIRECTORY</div><div class="intro-row"><div><h1>All <em>Courses</em></h1><p class="page-description">Find, edit, and review every course in the selected term.</p></div><button type="button" class="btn btn-outline" id="add-course-directory">+ Add Course</button></div></div>
+          <div class="directory-toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 4.8 4.8"/></svg><input id="directory-search" type="search" placeholder="Search courses…" aria-label="Search directory"></div></div><div id="directory-grid" class="directory-grid"></div>
+        </div>
+        <div id="history-view" class="hidden">
+          <div class="page-intro"><div class="eyebrow"><span class="eyebrow-line"></span> ACTIVITY ARCHIVE</div><div class="intro-row"><div><h1>Check-in <em>History</em></h1><p class="page-description">Your completed check-ins for the selected term.</p></div></div></div>
+          <div id="history-list" class="history-list"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="wizard-backdrop" role="presentation">
+    <section class="wizard-modal" id="wizard-modal" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
+      <div class="wizard-head"><div><div class="wizard-kicker">TERM PREP / CHECK-IN</div><h2 id="wizard-title">Course Check-in</h2></div><button type="button" class="icon-button" id="wizard-close" aria-label="Close check-in">×</button></div>
+      <div class="wizard-topline"><div><strong id="wizard-counter">Course 1 of 15</strong><span id="wizard-subcounter">Review each requirement for this course</span></div><span class="wizard-percent" id="wizard-percent">7%</span></div>
+      <div class="wizard-progress-rail"><div id="wizard-progress-fill"></div></div>
+      <div class="wizard-body" id="wizard-body"></div>
+      <div class="wizard-footer"><button type="button" class="btn btn-outline" id="wizard-back">Back</button><span class="wizard-footer-hint" id="wizard-footer-hint">Changes save when you finish the check-in.</span><button type="button" class="btn btn-primary" id="wizard-next">Next Course →</button></div>
+    </section>
+  </div>
+  <div class="modal-backdrop hidden" id="editor-backdrop" role="presentation">
+    <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+      <div class="wizard-head"><div><div class="wizard-kicker">COURSE DETAILS</div><h2 id="editor-title">Edit Course</h2></div><button type="button" class="icon-button" id="editor-close" aria-label="Close course editor">×</button></div>
+      <form id="editor-form" class="editor-form"><label>Course subject & number<input name="code" type="text" required maxlength="80" placeholder="e.g. BUAD 503"></label><label>Course title<input name="title" type="text" maxlength="200" placeholder="e.g. Business Communication"></label><label>Instructor(s)<input name="instructor" type="text" maxlength="200" placeholder="Instructor names"></label><label>Canvas course URL (optional)<input name="canvas" type="url" maxlength="500" placeholder="https://…"></label><div class="editor-actions"><button type="button" class="btn btn-subtle-danger hidden" id="delete-course">Delete course</button><div class="editor-spacer"></div><button type="button" class="btn btn-outline" id="cancel-editor">Cancel</button><button class="btn btn-primary" type="submit">Save Course</button></div></form>
+    </section>
+  </div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <input type="file" accept=".json,application/json" id="import-file" class="sr-only">
+</body>
+</html>

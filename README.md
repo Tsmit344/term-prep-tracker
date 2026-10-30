@@ -17,7 +17,7 @@ A simple, responsive term-prep dashboard designed for **Spring 2027 OMBA** and f
 
 ## Important: historical overview versus course details
 
-The supplied starting dashboard preserves the **October 30, 2026 aggregate summary of 1 complete, 6 partial, 8 none** as a *previous reported snapshot*, **not verified course-by-course data**. The individual fields begin at **Not checked**. The two courses absent from the available course list are clearly named **Course 14** and **Course 15**, and **MARK 538** has a missing title and instructor. Edit those in **All Courses**. Your first completed check-in replaces the historical aggregate with totals calculated entirely from your answers.
+The supplied starting dashboard preserves the **October 30, 2026 aggregate summary of 1 complete, 6 partial, 8 none** as a *previous reported snapshot*, **not verified course-by-course data**. The individual fields begin at **Not checked**. The Spring 2027 roster now includes all **15 confirmed course/instructor entries**. **MARK 538** lists Alex Zablah (Course Champion) and Aaron Garvey; **MGT 595** lists Kurt Jacobs; **MGT 596** lists Jason Strickling. A previous browser-saved roster is corrected automatically without resetting submissions or notes. Titles not supplied for MARK 538, MGT 595, and MGT 596 can be filled in through **All Courses**. Your first completed check-in replaces the historical aggregate with totals calculated entirely from your answers.
 
 ## Course status rules
 
@@ -64,4 +64,4 @@ favicon.svg  – site icon
 
 ## Customizing the roster
 
-The initial courses are in `seedRows` near the top of `app.js`. Once data is saved in your browser, changes to `seedRows` won't overwrite your records. Update courses through **All Courses** or reset site data only when you intend to start fresh.
+The initial courses are in `seedRows` near the top of `app.js`. The Spring 2027 roster uses an idempotent, limited correction for the original missing course/instructor entries. It preserves saved fields, notes, and check-in history. Other future changes to `seedRows` won't overwrite your saved records. Update individual courses through **All Courses**.

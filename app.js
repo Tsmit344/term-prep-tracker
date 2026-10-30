@@ -11,13 +11,12 @@
     { key: 'syllabus', label: 'Updated syllabus', short: 'SYLLABUS', prompt: 'Have you received the updated syllabus?' },
     { key: 'importVersion', label: 'Import version', short: 'IMPORT VERSION', prompt: 'Is the course version / import preference confirmed?' },
     { key: 'dueDates', label: 'Due dates', short: 'DUE DATES', prompt: 'Have you received or confirmed the due-date information?' },
-    { key: 'liveSessions', label: 'Live sessions', short: 'LIVE SESSIONS', prompt: 'Have the live-session dates been received or marked not required?' }
+    { key: 'liveSessions', label: 'Live sessions', short: 'LIVE SESSIONS', prompt: 'Have you received the live-session dates?' }
   ];
   const VALUES = [
-    { id: 'received', label: '✓ Received' },
-    { id: 'missing', label: '— Missing' },
-    { id: 'na', label: 'N/A' },
-    { id: 'clarify', label: '? Clarify' }
+    { id: 'received', label: 'Received' },
+    { id: 'missing', label: 'Missing' },
+    { id: 'partial', label: 'Partially Submitted' }
   ];
   const STATUS_DATA = {
     complete: { label: 'Complete', color: '#26846b', soft: '#e9f7f0', symbol: '✓' },
@@ -51,7 +50,8 @@
   const courseFromRow = ([code,title,instructor],i) => ({id:`course-${i+1}`,code,title,instructor,canvas:'',fields:{syllabus:'unreviewed',importVersion:'unreviewed',dueDates:'unreviewed',liveSessions:'unreviewed'},notes:''});
   const freshTerm = () => ({ id:'spring-2027-omba',name:'Spring 2027 OMBA',semester:'Spring 2027',program:'OMBA',courses:seedRows.map(courseFromRow),createdAt:'2026-10-30T12:00:00',updatedAt:'2026-10-30T12:00:00',hasCompletedCheckin:false, baselineDismissed:false,baseline:{complete:1,partial:6,none:8,verify:0,unreviewed:0},history:[] });
   const defaultStore = () => ({schemaVersion:1,activeTermId:'spring-2027-omba',terms:[freshTerm()]});
-  const validField = value => ['received','missing','na','clarify','unreviewed'].includes(value) ? value : 'unreviewed';
+  // Preserve legacy N/A and Clarify values from past check-ins, but only offer the three current options.
+  const validField = value => ['received','missing','partial','na','clarify','unreviewed'].includes(value) ? value : 'unreviewed';
   const clamp = (value,max) => String(value ?? '').slice(0,max);
   const clone = obj => JSON.parse(JSON.stringify(obj));
   let store = loadStore();
@@ -131,6 +131,7 @@
     if(vals.some(v=>v==='unreviewed'||v==='clarify')) return 'verify';
     const received=vals.filter(v=>v==='received').length;
     const missing=vals.filter(v=>v==='missing').length;
+    if(vals.includes('partial')) return 'partial';
     if(!missing) return 'complete';
     return received ? 'partial' : 'none';
   }
@@ -141,7 +142,7 @@
   }
   function overviewCounts(t) { return !t.hasCompletedCheckin && t.baseline ? t.baseline : countsFrom(t.courses); }
   function statusBadge(status) { return `<span class="status-badge badge-${status}"><span class="badge-dot"></span>${escapeHTML(STATUS_DATA[status].label)}</span>`; }
-  function fieldIcon(value) { const v=validField(value); const display={received:'✓',missing:'—',na:'N/A',clarify:'?',unreviewed:'·'}[v];return `<span class="status-icon icon-${v}" title="${escapeHTML({received:'Received',missing:'Missing',na:'Not required',clarify:'Needs clarification',unreviewed:'Not checked'}[v])}">${display}</span>`; }
+  function fieldIcon(value) { const v=validField(value); const display={received:'✓',missing:'—',partial:'◐',na:'N/A',clarify:'?',unreviewed:'·'}[v];return `<span class="status-icon icon-${v}" title="${escapeHTML({received:'Received',missing:'Missing',partial:'Partially Submitted',na:'Previously not applicable',clarify:'Previously needs clarification',unreviewed:'Not checked'}[v])}">${display}</span>`; }
   function toast(message) { const el=$('#toast');clearTimeout(toastTimeout);el.textContent=message;el.classList.remove('hidden');toastTimeout=setTimeout(()=>el.classList.add('hidden'),3400); }
   function renderTermSelector() {const t=currentTerm();$('#term-select').innerHTML=store.terms.map(x=>`<option value="${escapeHTML(x.id)}" ${x.id===t.id?'selected':''}>${escapeHTML(x.name)}</option>`).join('');}
   function updateNav() { $$('.side-link').forEach(el=>el.classList.toggle('active',el.dataset.view===activeView));$('#nav-course-count').textContent=currentTerm().courses.length;$('#breadcrumb-name').textContent=({dashboard:'Dashboard',courses:'All Courses',history:'Check-in History'})[activeView];}
@@ -189,7 +190,7 @@
   }
   function closeWizard() {if(wizard&&!confirm('Exit this check-in? Unsaved check-in answers will be discarded.'))return;wizard=null;$('#wizard-backdrop').classList.add('hidden');document.body.style.overflow='';}
   function renderWizard(){if(!wizard)return;const length=wizard.courses.length,idx=wizard.index,summary=idx===length;const pct=summary?100:Math.round((idx+1)/length*100);$('#wizard-counter').textContent=summary?'Review & finish':`Course ${idx+1} of ${length}`;$('#wizard-subcounter').textContent=summary?'Confirm your results before updating the dashboard':'Review each requirement for this course';$('#wizard-percent').textContent=`${pct}%`;$('#wizard-progress-fill').style.width=`${pct}%`;$('#wizard-back').disabled=idx===0;$('#wizard-next').textContent=summary?'Finish Check-in & Update Dashboard':idx===length-1?'Review Check-in →':'Next Course →';$('#wizard-title').textContent=summary?'Check-in Summary':'Course Check-in';$('#wizard-footer-hint').textContent='Changes save when you finish the check-in.';
-    if(summary){const cnt=countsFrom(wizard.courses);const reviewCount=cnt.verify+cnt.unreviewed;$('#wizard-body').innerHTML=`<div class="review-summary"><div class="course-prefix" style="font-size:10px;letter-spacing:1.2px;color:var(--accent);font-weight:800;margin-bottom:12px">CHECK-IN COMPLETE</div><h3>Ready to refresh your dashboard?</h3><p>Here is the new overview based on your responses. Select Finish Check-in to save everything and regenerate the course tracker.</p><div class="review-totals">${[['Complete',cnt.complete,'var(--green)'],['Partial',cnt.partial,'var(--amber)'],['None',cnt.none,'var(--red)'],['To verify',reviewCount,'var(--blue)']].map(([label,count,color])=>`<div class="review-tile"><strong style="color:${color}">${count}</strong><span>${label}</span></div>`).join('')}</div>${reviewCount?`<div class="review-warning"><strong>${reviewCount} course(s) need follow-up.</strong> A course is marked “To verify” when a requirement is unanswered or needs clarification. You can still finish the check-in.</div>`:''}<div class="review-list">${wizard.courses.map((c,i)=>`<div class="review-item"><span>${i+1}. <strong>${escapeHTML(c.code)}</strong></span>${statusBadge(statusFor(c))}</div>`).join('')}</div></div>`;return;}
+    if(summary){const cnt=countsFrom(wizard.courses);const reviewCount=cnt.verify+cnt.unreviewed;$('#wizard-body').innerHTML=`<div class="review-summary"><div class="course-prefix" style="font-size:10px;letter-spacing:1.2px;color:var(--accent);font-weight:800;margin-bottom:12px">CHECK-IN COMPLETE</div><h3>Ready to refresh your dashboard?</h3><p>Here is the new overview based on your responses. Select Finish Check-in to save everything and regenerate the course tracker.</p><div class="review-totals">${[['Complete',cnt.complete,'var(--green)'],['Partial',cnt.partial,'var(--amber)'],['None',cnt.none,'var(--red)'],['To verify',reviewCount,'var(--blue)']].map(([label,count,color])=>`<div class="review-tile"><strong style="color:${color}">${count}</strong><span>${label}</span></div>`).join('')}</div>${reviewCount?`<div class="review-warning"><strong>${reviewCount} course(s) need follow-up.</strong> A course is marked “To verify” when a criterion is unanswered or still has an older clarification status. You can still finish the check-in.</div>`:''}<div class="review-list">${wizard.courses.map((c,i)=>`<div class="review-item"><span>${i+1}. <strong>${escapeHTML(c.code)}</strong></span>${statusBadge(statusFor(c))}</div>`).join('')}</div></div>`;return;}
     const c=wizard.courses[idx];$('#wizard-body').innerHTML=`<div class="course-heading"><div class="course-prefix">${escapeHTML(c.code)}</div><h3>${escapeHTML(c.title||'Course details to confirm')}</h3><p>${escapeHTML(c.instructor||'Instructor not yet confirmed')}</p></div><div class="field-grid">${FIELDS.map(f=>`<section class="field-card"><h4>${escapeHTML(f.label)}</h4><p>${escapeHTML(f.prompt)}</p><div class="field-options">${VALUES.map(v=>`<button type="button" class="field-option ${c.fields[f.key]===v.id?'selected':''}" data-field="${f.key}" data-answer="${v.id}" aria-pressed="${c.fields[f.key]===v.id}">${escapeHTML(v.label)}</button>`).join('')}</div></section>`).join('')}</div><div class="notes-area"><label for="checkin-notes">Instructor preferences / ID notes</label><textarea id="checkin-notes" maxlength="5000" placeholder="Example: Requested Summer 2026 parent course; need to confirm live session dates…">${escapeHTML(c.notes)}</textarea></div>`;
   }
   function nextWizard() {if(!wizard)return;if(wizard.index<wizard.courses.length){wizard.index++;renderWizard();return;}const t=currentTerm();if(t.id!==wizard.termId){toast('Selected term changed. Check-in not saved.');return;}const now=new Date().toISOString();t.courses=wizard.courses;t.updatedAt=now;t.hasCompletedCheckin=true;t.baseline=null;const counts=countsFrom(t.courses);t.history.push({id:uid(),at:now,total:t.courses.length,counts});t.history=t.history.slice(-100);persist();wizard=null;$('#wizard-backdrop').classList.add('hidden');document.body.style.overflow='';$('#course-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Check-in saved. Dashboard updated.');}

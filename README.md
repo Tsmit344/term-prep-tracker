@@ -21,13 +21,13 @@ The supplied starting dashboard preserves the **October 30, 2026 aggregate summa
 
 ## Course status rules
 
-- **Complete**: every field is `Received` or `N/A`.
-- **Partial**: at least one field is `Received` and at least one is `Missing`, with no pending or clarification fields.
-- **None**: at least one field is `Missing` and no fields are `Received`, with no pending or clarification fields.
-- **To verify**: any field is still `Not checked` or set to `Clarify`, unless all fields are `Not checked`.
-- **Not checked**: all four fields are unanswered.
+- **Complete**: all four criteria are `Received`.
+- **Partial**: any criterion is `Partially Submitted`, or the course has a mix of `Received` and `Missing`, and nothing is pending.
+- **None**: all four criteria are `Missing`.
+- **To verify**: any criterion remains `Not checked` (or has a saved legacy `Clarify` status) unless every criterion is unchecked.
+- **Not checked**: all four criteria are unanswered.
 
-A response of `N/A` means the requirement is not applicable; it does not count as missing.
+Existing saved `N/A` and `Clarify` values remain readable so previous submissions are not silently changed. They are no longer available for new check-in selections; choose one of the three options the next time you review those fields.
 
 ## How to publish on GitHub Pages
 
@@ -43,7 +43,7 @@ The `.nojekyll` file is included to make static publishing explicit. No build st
 
 1. Open the website and check the starting dashboard.
 2. Use **All Courses** to fill in missing course information.
-3. Select **Start Check-in** and review each course. Options: **Received**, **Missing**, **N/A**, **Clarify**.
+3. Select **Start Check-in** and review each course. Options: **Received**, **Missing**, **Partially Submitted**.
 4. Add notes, including import preferences or any instructor-specific caveats.
 5. On the summary screen, select **Finish Check-in & Update Dashboard**.
 6. Use **Export / Import → Export backup (.json)** regularly to save a recoverable copy.

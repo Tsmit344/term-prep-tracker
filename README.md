@@ -1,11 +1,12 @@
 # Term Prep Tracker
 
-A simple, responsive term-prep dashboard designed for **Spring 2027 OMBA** and future terms. It requires **no installs, build tools, or external services**. GitHub Pages can host it directly.
+A simple, responsive term-prep dashboard for **Spring 2027 OMBA**, **Spring 2027 SCM**, and future terms. It requires **no installs, build tools, or external services**. GitHub Pages can host it directly.
 
 ## Features
 
+- Separate program/term dashboards, selectable in the left sidebar. Spring 2027 OMBA has 15 courses; Spring 2027 SCM has 14 distinct course sections.
 - Dashboard with counts and a color-coded submission-progress bar.
-- Course table for syllabus, import version, due dates, and live sessions.
+- Course table for syllabus, import version, due dates, and live sessions. Each course also has a separate primary instructor and course champion field.
 - **Start Check-in**: work through every course, answer four questions, and add instructor/ID notes.
 - Review screen, then **Finish Check-in & Update Dashboard** to recalculate all statuses.
 - Click a table row to start a check-in focused on that course.
@@ -65,3 +66,6 @@ favicon.svg  – site icon
 ## Customizing the roster
 
 The initial courses are in `seedRows` near the top of `app.js`. The Spring 2027 roster uses an idempotent, limited correction for the original missing course/instructor entries. It preserves saved fields, notes, and check-in history. Other future changes to `seedRows` won't overwrite your saved records. Update individual courses through **All Courses**.
+## Spring 2027 SCM roster
+
+SCM has 14 separate course-section records, each with a primary instructor and course champion. CRNs and email addresses were intentionally excluded. No SCM submissions have been assumed: each field starts as "Not checked", and the dashboard shows these as needing review until the first check-in. On existing browsers, the SCM dashboard is added automatically without touching saved OMBA course data, notes, or check-in history. Both programs use the same check-in workflow and have independent progress and histories.

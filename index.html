@@ -7,8 +7,8 @@
   <meta name="description" content="A term-preparation tracker with a guided course check-in workflow and live overview dashboard.">
   <title>Term Prep | Digital Learning</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3">
-  <script src="app.js?v=3" defer></script>
+  <link rel="stylesheet" href="styles.css?v=4">
+  <script src="app.js?v=4" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -29,6 +29,7 @@
         <select id="term-select" aria-label="Select active term"></select>
         <button type="button" class="new-term" id="new-term" title="Create a new term" aria-label="Create a new term">+</button>
       </div>
+      <div id="term-quick-links" class="term-quick-links" aria-label="Program dashboards"></div>
       <div class="side-bottom">
         <div class="helper-panel"><div class="helper-icon">✦</div><strong>A clearer way to prep.</strong><p>One place for every course, update, and follow-up.</p></div>
         <div class="side-footer">Built for Digital Learning <span>•</span> v1.0</div>
@@ -102,7 +103,7 @@
   <div class="modal-backdrop hidden" id="editor-backdrop" role="presentation">
     <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
       <div class="wizard-head"><div><div class="wizard-kicker">COURSE DETAILS</div><h2 id="editor-title">Edit Course</h2></div><button type="button" class="icon-button" id="editor-close" aria-label="Close course editor">×</button></div>
-      <form id="editor-form" class="editor-form"><label>Course subject & number<input name="code" type="text" required maxlength="80" placeholder="e.g. BUAD 503"></label><label>Course title<input name="title" type="text" maxlength="200" placeholder="e.g. Business Communication"></label><label>Instructor(s)<input name="instructor" type="text" maxlength="200" placeholder="Instructor names"></label><label>Canvas course URL (optional)<input name="canvas" type="url" maxlength="500" placeholder="https://…"></label><div class="editor-actions"><button type="button" class="btn btn-subtle-danger hidden" id="delete-course">Delete course</button><div class="editor-spacer"></div><button type="button" class="btn btn-outline" id="cancel-editor">Cancel</button><button class="btn btn-primary" type="submit">Save Course</button></div></form>
+      <form id="editor-form" class="editor-form"><label>Course subject & number<input name="code" type="text" required maxlength="80" placeholder="e.g. BUAD 503"></label><label>Course title<input name="title" type="text" maxlength="200" placeholder="e.g. Business Communication"></label><label>Primary Instructor(s)<input name="instructor" type="text" maxlength="200" placeholder="Instructor names"></label><label>Course Champion<input name="champion" type="text" maxlength="200" placeholder="Course champion name"></label><label>Canvas course URL (optional)<input name="canvas" type="url" maxlength="500" placeholder="https://…"></label><div class="editor-actions"><button type="button" class="btn btn-subtle-danger hidden" id="delete-course">Delete course</button><div class="editor-spacer"></div><button type="button" class="btn btn-outline" id="cancel-editor">Cancel</button><button class="btn btn-primary" type="submit">Save Course</button></div></form>
     </section>
   </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>

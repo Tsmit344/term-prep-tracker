@@ -43,13 +43,95 @@
     ['MGT 596','','Jason Strickling']
   ];
 
+  // One record per course AND section. CRNs and email addresses are intentionally excluded.
+  const scmSeedRows = [
+    [
+        "SCM 545 Sec 001",
+        "Alan Amling",
+        "Alan Amling"
+    ],
+    [
+        "SCM 547 Sec 001",
+        "Jeffrey Trombly",
+        "Dan Pellathy"
+    ],
+    [
+        "SCM 548 Sec 001",
+        "Don Maier",
+        "Don Maier"
+    ],
+    [
+        "SCM 548 Sec 002",
+        "Darrell Edwards",
+        "Don Maier"
+    ],
+    [
+        "SCM 555 Sec 001",
+        "Daniel Pellathy",
+        "Joe Buckley"
+    ],
+    [
+        "SCM 555 Sec 002",
+        "Daniel Pellathy",
+        "Joe Buckley"
+    ],
+    [
+        "SCM 563 Sec 001",
+        "Pamela S. Donovan",
+        "Pamela S. Donovan"
+    ],
+    [
+        "SCM 563 Sec 002",
+        "Pamela S. Donovan",
+        "Pamela S. Donovan"
+    ],
+    [
+        "SCM 564 Sec 001",
+        "Alex Scott",
+        "Pamela S. Donovan"
+    ],
+    [
+        "SCM 565 Sec 002",
+        "Alan Amling",
+        "Alan Amling"
+    ],
+    [
+        "SCM 571 Sec 002",
+        "Whitney Tate",
+        "Wendy Tate"
+    ],
+    [
+        "SCM 573 Sec 001",
+        "Jeffrey Trombly",
+        "Jeffrey Trombly"
+    ],
+    [
+        "SCM 573 Sec 002",
+        "Jeff Barland",
+        "Jeffrey Trombly"
+    ],
+    [
+        "SCM 580 Sec 001",
+        "Ted Stank & Tom Goldsby",
+        "Yemisi Bolumole"
+    ]
+];
+
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
-  const courseFromRow = ([code,title,instructor],i) => ({id:`course-${i+1}`,code,title,instructor,canvas:'',fields:{syllabus:'unreviewed',importVersion:'unreviewed',dueDates:'unreviewed',liveSessions:'unreviewed'},notes:''});
+  const courseFromRow = ([code,title,instructor,champion],i) => ({id:`course-${i+1}`,code,title,instructor,champion:champion||'',canvas:'',fields:{syllabus:'unreviewed',importVersion:'unreviewed',dueDates:'unreviewed',liveSessions:'unreviewed'},notes:''});
   const freshTerm = () => ({ id:'spring-2027-omba',name:'Spring 2027 OMBA',semester:'Spring 2027',program:'OMBA',courses:seedRows.map(courseFromRow),createdAt:'2026-10-30T12:00:00',updatedAt:'2026-10-30T12:00:00',hasCompletedCheckin:false, baselineDismissed:false,baseline:{complete:1,partial:6,none:8,verify:0,unreviewed:0},history:[] });
-  const defaultStore = () => ({schemaVersion:1,activeTermId:'spring-2027-omba',terms:[freshTerm()]});
+  const freshSCMTerm = () => {
+    const now = new Date().toISOString();
+    return {
+      id:'spring-2027-scm',name:'Spring 2027 SCM',semester:'Spring 2027',program:'SCM',
+      courses:scmSeedRows.map(([code,instructor,champion])=>[code,'',instructor,champion]).map(courseFromRow),
+      createdAt:now,updatedAt:now,hasCompletedCheckin:false,baselineDismissed:true,baseline:null,history:[]
+    };
+  };
+  const defaultStore = () => ({schemaVersion:1,activeTermId:'spring-2027-omba',terms:[freshTerm(),freshSCMTerm()]});
   // Preserve legacy N/A and Clarify values from past check-ins, but only offer the three current options.
   const validField = value => ['received','missing','partial','na','clarify','unreviewed'].includes(value) ? value : 'unreviewed';
   const clamp = (value,max) => String(value ?? '').slice(0,max);
@@ -62,7 +144,7 @@
 
   function normalizeCourse(c,i) {
     if (!c || typeof c !== 'object') return null;
-    return {id:clamp(c.id || uid(),90),code:clamp(c.code || `Course ${i+1}`,80),title:clamp(c.title,200),instructor:clamp(c.instructor,200),canvas:clamp(c.canvas,500),fields:Object.fromEntries(FIELDS.map(f=>[f.key,validField(c.fields?.[f.key])])),notes:clamp(c.notes,5000)};
+    return {id:clamp(c.id || uid(),90),code:clamp(c.code || `Course ${i+1}`,80),title:clamp(c.title,200),instructor:clamp(c.instructor,200),champion:clamp(c.champion,200),canvas:clamp(c.canvas,500),fields:Object.fromEntries(FIELDS.map(f=>[f.key,validField(c.fields?.[f.key])])),notes:clamp(c.notes,5000)};
   }
   function normalizeTerm(t,i) {
     if (!t || typeof t !== 'object' || !Array.isArray(t.courses)) return null;
@@ -103,6 +185,18 @@
     });
     return changed;
   }
+  // Add the new SCM dashboard once for existing visitors; never reset OMBA data.
+  function ensureSpring2027SCM(terms) {
+    const t=terms.find(x=>x.id==='spring-2027-scm' || x.name.trim().toLowerCase()==='spring 2027 scm');
+    if (!t) { terms.push(freshSCMTerm()); return true; }
+    // An empty, manually-created SCM term can safely receive the supplied roster.
+    if (!t.courses.length && !t.history.length) {
+      t.courses=freshSCMTerm().courses;
+      t.program='SCM';t.semester='Spring 2027';
+      return true;
+    }
+    return false;
+  }
   function loadStore() {
     try {
       const saved=localStorage.getItem(KEY);
@@ -112,7 +206,9 @@
       const terms=raw.terms.slice(0,50).map(normalizeTerm).filter(Boolean);
       if(!terms.length) return defaultStore();
       const next={schemaVersion:1,terms,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id};
-      if (reconcileSpring2027Roster(terms)) {
+      const changedOMBA=reconcileSpring2027Roster(terms);
+      const addedSCM=ensureSpring2027SCM(terms);
+      if (changedOMBA || addedSCM) {
         try { localStorage.setItem(KEY, JSON.stringify(next)); } catch (_) { /* leave loaded data intact */ }
       }
       return next;
@@ -144,7 +240,20 @@
   function statusBadge(status) { return `<span class="status-badge badge-${status}"><span class="badge-dot"></span>${escapeHTML(STATUS_DATA[status].label)}</span>`; }
   function fieldIcon(value) { const v=validField(value); const display={received:'✓',missing:'—',partial:'◐',na:'N/A',clarify:'?',unreviewed:'·'}[v];return `<span class="status-icon icon-${v}" title="${escapeHTML({received:'Received',missing:'Missing',partial:'Partially Submitted',na:'Previously not applicable',clarify:'Previously needs clarification',unreviewed:'Not checked'}[v])}">${display}</span>`; }
   function toast(message) { const el=$('#toast');clearTimeout(toastTimeout);el.textContent=message;el.classList.remove('hidden');toastTimeout=setTimeout(()=>el.classList.add('hidden'),3400); }
-  function renderTermSelector() {const t=currentTerm();$('#term-select').innerHTML=store.terms.map(x=>`<option value="${escapeHTML(x.id)}" ${x.id===t.id?'selected':''}>${escapeHTML(x.name)}</option>`).join('');}
+  function renderTermSelector() {
+    const t=currentTerm();
+    $('#term-select').innerHTML=store.terms.map(x=>`<option value="${escapeHTML(x.id)}" ${x.id===t.id?'selected':''}>${escapeHTML(x.name)}</option>`).join('');
+    $('#term-quick-links').innerHTML=store.terms.map(x=>`<button type="button" data-term-id="${escapeHTML(x.id)}" class="term-shortcut ${x.id===t.id?'active':''}" aria-current="${x.id===t.id?'page':'false'}"><span class="term-shortcut-dot"></span><span>${escapeHTML(x.name)}</span><span class="term-shortcut-count">${x.courses.length}</span></button>`).join('');
+  }
+  function switchTerm(id) {
+    if (!store.terms.some(t=>t.id===id)) return;
+    store.activeTermId=id;
+    persist();
+    $('#course-search').value='';
+    $('#directory-search').value='';
+    $('#filter-status').value='all';
+    showView('dashboard');
+  }
   function updateNav() { $$('.side-link').forEach(el=>el.classList.toggle('active',el.dataset.view===activeView));$('#nav-course-count').textContent=currentTerm().courses.length;$('#breadcrumb-name').textContent=({dashboard:'Dashboard',courses:'All Courses',history:'Check-in History'})[activeView];}
   function showView(view) { activeView=view;['dashboard','courses','history'].forEach(k=>$(`#${k}-view`).classList.toggle('hidden',k!==view));updateNav();render();$('#sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'instant'}); }
   function render(){ const t=currentTerm();renderTermSelector();updateNav();if(activeView==='dashboard')renderDashboard(t);if(activeView==='courses')renderDirectory(t);if(activeView==='history')renderHistory(t); }
@@ -175,11 +284,11 @@
     $('#progress-bar').setAttribute('aria-label',seq.map(s=>`${STATUS_DATA[s].label}: ${counts[s]||0}`).join(', '));
     $('#chart-legend').innerHTML=seq.filter(s=>(counts[s]||0)>0 || s!=='unreviewed'&&s!=='verify').map(s=>`<div class="legend-item"><span class="legend-dot" style="background:${STATUS_DATA[s].color}"></span>${STATUS_DATA[s].label} <span class="legend-count">(${counts[s]||0})</span></div>`).join('');
     const q=$('#course-search').value.toLowerCase().trim(), filter=$('#filter-status').value;
-    const courses=t.courses.filter(c=>(filter==='all'||statusFor(c)===filter)&&`${c.code} ${c.title} ${c.instructor}`.toLowerCase().includes(q));
-    $('#course-tbody').innerHTML=courses.length ? courses.map(c=>`<tr data-course-id="${escapeHTML(c.id)}" title="Open check-in for ${escapeHTML(c.code)}"><td><div class="course-code">${escapeHTML(c.code)}</div>${c.title?`<div class="course-title">${escapeHTML(c.title)}</div>`:''}<div class="course-instructor">${escapeHTML(c.instructor||'Instructor to confirm')}</div></td>${FIELDS.map(f=>`<td>${fieldIcon(c.fields[f.key])}</td>`).join('')}<td>${statusBadge(statusFor(c))}</td><td class="row-arrow">›</td></tr>`).join('') : `<tr><td colspan="7" class="empty-state">No courses match this filter.</td></tr>`;
+    const courses=t.courses.filter(c=>(filter==='all'||statusFor(c)===filter)&&`${c.code} ${c.title} ${c.instructor} ${c.champion||''}`.toLowerCase().includes(q));
+    $('#course-tbody').innerHTML=courses.length ? courses.map(c=>`<tr data-course-id="${escapeHTML(c.id)}" title="Open check-in for ${escapeHTML(c.code)}"><td><div class="course-code">${escapeHTML(c.code)}</div>${c.title?`<div class="course-title">${escapeHTML(c.title)}</div>`:''}<div class="course-instructor">${c.champion?'<strong>Instructor:</strong> ':''}${escapeHTML(c.instructor||'Instructor to confirm')}</div>${c.champion?`<div class="course-champion"><strong>Course Champion:</strong> ${escapeHTML(c.champion)}</div>`:''}</td>${FIELDS.map(f=>`<td>${fieldIcon(c.fields[f.key])}</td>`).join('')}<td>${statusBadge(statusFor(c))}</td><td class="row-arrow">›</td></tr>`).join('') : `<tr><td colspan="7" class="empty-state">No courses match this filter.</td></tr>`;
     $('#table-count').textContent=`Showing ${courses.length} of ${t.courses.length} courses`;
   }
-  function renderDirectory(t){ const q=$('#directory-search').value.toLowerCase().trim();const courses=t.courses.filter(c=>`${c.code} ${c.title} ${c.instructor}`.toLowerCase().includes(q));$('#directory-grid').innerHTML=courses.length ? courses.map(c=>`<button type="button" class="directory-card" data-edit-id="${escapeHTML(c.id)}"><div class="eyebrow" style="margin-bottom:0"><span class="eyebrow-line"></span> COURSE FILE</div><h3>${escapeHTML(c.code)}</h3><p>${escapeHTML(c.title||'Course title to confirm')}</p><p style="margin-top:5px">${escapeHTML(c.instructor||'Instructor to confirm')}</p>${statusBadge(statusFor(c))}</button>`).join(''):`<div class="empty-state">No matching courses.</div>`; }
+  function renderDirectory(t){ const q=$('#directory-search').value.toLowerCase().trim();const courses=t.courses.filter(c=>`${c.code} ${c.title} ${c.instructor} ${c.champion||''}`.toLowerCase().includes(q));$('#directory-grid').innerHTML=courses.length ? courses.map(c=>`<button type="button" class="directory-card" data-edit-id="${escapeHTML(c.id)}"><div class="eyebrow" style="margin-bottom:0"><span class="eyebrow-line"></span> COURSE FILE</div><h3>${escapeHTML(c.code)}</h3>${c.title?`<p>${escapeHTML(c.title)}</p>`:''}<p style="margin-top:8px"><strong>Instructor:</strong> ${escapeHTML(c.instructor||'To confirm')}</p>${c.champion?`<p style="margin-top:5px"><strong>Course Champion:</strong> ${escapeHTML(c.champion)}</p>`:''}${statusBadge(statusFor(c))}</button>`).join(''):`<div class="empty-state">No matching courses.</div>`; }
   function renderHistory(t){ const history=t.history.slice().reverse();$('#history-list').innerHTML=history.length?history.map((h,i)=>`<div class="history-item"><div><strong>${i===0?'Latest check-in':'Check-in'} · ${escapeHTML(dateLabel(h.at))}</strong><small>${escapeHTML(timestampLabel(h.at))} · ${h.total} courses</small></div><div class="history-totals"><span class="history-total">Complete <strong>${h.counts.complete||0}</strong></span><span class="history-total">Partial <strong>${h.counts.partial||0}</strong></span><span class="history-total">None <strong>${h.counts.none||0}</strong></span><span class="history-total">Verify <strong>${(h.counts.verify||0)+(h.counts.unreviewed||0)}</strong></span></div></div>`).join(''):`<div class="card empty-state">No check-ins recorded yet. Select <strong>Start Check-in</strong> to create the first one.<br><br>The October 30 baseline summary is not a course-by-course check-in.</div>`; }
 
   function startCheckin(courseId) {
@@ -191,26 +300,27 @@
   function closeWizard() {if(wizard&&!confirm('Exit this check-in? Unsaved check-in answers will be discarded.'))return;wizard=null;$('#wizard-backdrop').classList.add('hidden');document.body.style.overflow='';}
   function renderWizard(){if(!wizard)return;const length=wizard.courses.length,idx=wizard.index,summary=idx===length;const pct=summary?100:Math.round((idx+1)/length*100);$('#wizard-counter').textContent=summary?'Review & finish':`Course ${idx+1} of ${length}`;$('#wizard-subcounter').textContent=summary?'Confirm your results before updating the dashboard':'Review each requirement for this course';$('#wizard-percent').textContent=`${pct}%`;$('#wizard-progress-fill').style.width=`${pct}%`;$('#wizard-back').disabled=idx===0;$('#wizard-next').textContent=summary?'Finish Check-in & Update Dashboard':idx===length-1?'Review Check-in →':'Next Course →';$('#wizard-title').textContent=summary?'Check-in Summary':'Course Check-in';$('#wizard-footer-hint').textContent='Changes save when you finish the check-in.';
     if(summary){const cnt=countsFrom(wizard.courses);const reviewCount=cnt.verify+cnt.unreviewed;$('#wizard-body').innerHTML=`<div class="review-summary"><div class="course-prefix" style="font-size:10px;letter-spacing:1.2px;color:var(--accent);font-weight:800;margin-bottom:12px">CHECK-IN COMPLETE</div><h3>Ready to refresh your dashboard?</h3><p>Here is the new overview based on your responses. Select Finish Check-in to save everything and regenerate the course tracker.</p><div class="review-totals">${[['Complete',cnt.complete,'var(--green)'],['Partial',cnt.partial,'var(--amber)'],['None',cnt.none,'var(--red)'],['To verify',reviewCount,'var(--blue)']].map(([label,count,color])=>`<div class="review-tile"><strong style="color:${color}">${count}</strong><span>${label}</span></div>`).join('')}</div>${reviewCount?`<div class="review-warning"><strong>${reviewCount} course(s) need follow-up.</strong> A course is marked “To verify” when a criterion is unanswered or still has an older clarification status. You can still finish the check-in.</div>`:''}<div class="review-list">${wizard.courses.map((c,i)=>`<div class="review-item"><span>${i+1}. <strong>${escapeHTML(c.code)}</strong></span>${statusBadge(statusFor(c))}</div>`).join('')}</div></div>`;return;}
-    const c=wizard.courses[idx];$('#wizard-body').innerHTML=`<div class="course-heading"><div class="course-prefix">${escapeHTML(c.code)}</div><h3>${escapeHTML(c.title||'Course details to confirm')}</h3><p>${escapeHTML(c.instructor||'Instructor not yet confirmed')}</p></div><div class="field-grid">${FIELDS.map(f=>`<section class="field-card"><h4>${escapeHTML(f.label)}</h4><p>${escapeHTML(f.prompt)}</p><div class="field-options">${VALUES.map(v=>`<button type="button" class="field-option ${c.fields[f.key]===v.id?'selected':''}" data-field="${f.key}" data-answer="${v.id}" aria-pressed="${c.fields[f.key]===v.id}">${escapeHTML(v.label)}</button>`).join('')}</div></section>`).join('')}</div><div class="notes-area"><label for="checkin-notes">Instructor preferences / ID notes</label><textarea id="checkin-notes" maxlength="5000" placeholder="Example: Requested Summer 2026 parent course; need to confirm live session dates…">${escapeHTML(c.notes)}</textarea></div>`;
+    const c=wizard.courses[idx];$('#wizard-body').innerHTML=`<div class="course-heading"><div class="course-prefix">${escapeHTML(c.code)}</div>${c.title?`<h3>${escapeHTML(c.title)}</h3>`:''}<p><strong>Instructor:</strong> ${escapeHTML(c.instructor||'Instructor not yet confirmed')}</p>${c.champion?`<p class="wizard-champion"><strong>Course Champion:</strong> ${escapeHTML(c.champion)}</p>`:''}</div><div class="field-grid">${FIELDS.map(f=>`<section class="field-card"><h4>${escapeHTML(f.label)}</h4><p>${escapeHTML(f.prompt)}</p><div class="field-options">${VALUES.map(v=>`<button type="button" class="field-option ${c.fields[f.key]===v.id?'selected':''}" data-field="${f.key}" data-answer="${v.id}" aria-pressed="${c.fields[f.key]===v.id}">${escapeHTML(v.label)}</button>`).join('')}</div></section>`).join('')}</div><div class="notes-area"><label for="checkin-notes">Instructor preferences / ID notes</label><textarea id="checkin-notes" maxlength="5000" placeholder="Example: Requested Summer 2026 parent course; need to confirm live session dates…">${escapeHTML(c.notes)}</textarea></div>`;
   }
   function nextWizard() {if(!wizard)return;if(wizard.index<wizard.courses.length){wizard.index++;renderWizard();return;}const t=currentTerm();if(t.id!==wizard.termId){toast('Selected term changed. Check-in not saved.');return;}const now=new Date().toISOString();t.courses=wizard.courses;t.updatedAt=now;t.hasCompletedCheckin=true;t.baseline=null;const counts=countsFrom(t.courses);t.history.push({id:uid(),at:now,total:t.courses.length,counts});t.history=t.history.slice(-100);persist();wizard=null;$('#wizard-backdrop').classList.add('hidden');document.body.style.overflow='';$('#course-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Check-in saved. Dashboard updated.');}
 
-  function openEditor(id){const t=currentTerm();const c=t.courses.find(x=>x.id===id);editorCourseId=id||null;$('#editor-title').textContent=c?'Edit Course':'Add Course';const f=$('#editor-form');f.elements.code.value=c?.code||'';f.elements.title.value=c?.title||'';f.elements.instructor.value=c?.instructor||'';f.elements.canvas.value=c?.canvas||'';$('#delete-course').classList.toggle('hidden',!c);$('#editor-backdrop').classList.remove('hidden');document.body.style.overflow='hidden';f.elements.code.focus();}
+  function openEditor(id){const t=currentTerm();const c=t.courses.find(x=>x.id===id);editorCourseId=id||null;$('#editor-title').textContent=c?'Edit Course':'Add Course';const f=$('#editor-form');f.elements.code.value=c?.code||'';f.elements.title.value=c?.title||'';f.elements.instructor.value=c?.instructor||'';f.elements.champion.value=c?.champion||'';f.elements.canvas.value=c?.canvas||'';$('#delete-course').classList.toggle('hidden',!c);$('#editor-backdrop').classList.remove('hidden');document.body.style.overflow='hidden';f.elements.code.focus();}
   function closeEditor(){editorCourseId=null;$('#editor-backdrop').classList.add('hidden');document.body.style.overflow='';}
-  function saveEditor(e){e.preventDefault();const f=e.currentTarget,code=f.elements.code.value.trim(),title=f.elements.title.value.trim(),instructor=f.elements.instructor.value.trim(),canvas=f.elements.canvas.value.trim();if(!code){toast('Course subject and number are required.');return;}if(canvas&&!/^https:\/\//i.test(canvas)){toast('Canvas URL must begin with https://');return;}const t=currentTerm();if(editorCourseId){const c=t.courses.find(x=>x.id===editorCourseId);if(c){Object.assign(c,{code,title,instructor,canvas});}}else{t.courses.push({id:uid(),code,title,instructor,canvas,fields:Object.fromEntries(FIELDS.map(f=>[f.key,'unreviewed'])),notes:''});}t.updatedAt=new Date().toISOString();persist();closeEditor();render();toast('Course saved.');}
+  function saveEditor(e){e.preventDefault();const f=e.currentTarget,code=f.elements.code.value.trim(),title=f.elements.title.value.trim(),instructor=f.elements.instructor.value.trim(),champion=f.elements.champion.value.trim(),canvas=f.elements.canvas.value.trim();if(!code){toast('Course subject and number are required.');return;}if(canvas&&!/^https:\/\//i.test(canvas)){toast('Canvas URL must begin with https://');return;}const t=currentTerm();if(editorCourseId){const c=t.courses.find(x=>x.id===editorCourseId);if(c){Object.assign(c,{code,title,instructor,champion,canvas});}}else{t.courses.push({id:uid(),code,title,instructor,champion,canvas,fields:Object.fromEntries(FIELDS.map(f=>[f.key,'unreviewed'])),notes:''});}t.updatedAt=new Date().toISOString();persist();closeEditor();render();toast('Course saved.');}
   function deleteCourse(){if(!editorCourseId)return;const t=currentTerm();const c=t.courses.find(x=>x.id===editorCourseId);if(!c)return;if(!confirm(`Delete ${c.code} from ${t.name}? This also removes its submissions and notes.`))return;t.courses=t.courses.filter(x=>x.id!==editorCourseId);t.updatedAt=new Date().toISOString();if(t.baseline){t.baseline=null;t.hasCompletedCheckin=true;}persist();closeEditor();render();toast('Course deleted.');}
-  function addTerm(){const name=prompt('Name the new term (for example, Fall 2027 OMBA):');if(name===null)return;const cleaned=name.trim();if(!cleaned||cleaned.length>100){toast('Enter a term name under 100 characters.');return;}const copy=confirm('Copy the current term’s course list into the new term? All submission answers and notes will be reset.');const prev=currentTerm();const t={id:uid(),name:cleaned,semester:cleaned.replace(/\s+OMBA$/i,'').trim(),program:/\bOMBA\b/i.test(cleaned)?'OMBA':'',courses:copy?prev.courses.map(c=>({...clone(c),id:uid(),fields:Object.fromEntries(FIELDS.map(f=>[f.key,'unreviewed'])),notes:''})):[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),hasCompletedCheckin:true,baseline:null,baselineDismissed:true,history:[]};store.terms.push(t);store.activeTermId=t.id;persist();showView('dashboard');toast('New term created.');}
+  function addTerm(){const name=prompt('Name the new term (for example, Fall 2027 OMBA):');if(name===null)return;const cleaned=name.trim();if(!cleaned||cleaned.length>100){toast('Enter a term name under 100 characters.');return;}const copy=confirm('Copy the current term’s course list into the new term? All submission answers and notes will be reset.');const prev=currentTerm();const t={id:uid(),name:cleaned,semester:cleaned.replace(/\s+(OMBA|SCM)$/i,'').trim(),program:/\b(OMBA|SCM)\b/i.test(cleaned)?cleaned.match(/\b(OMBA|SCM)\b/i)[1].toUpperCase():'',courses:copy?prev.courses.map(c=>({...clone(c),id:uid(),fields:Object.fromEntries(FIELDS.map(f=>[f.key,'unreviewed'])),notes:''})):[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),hasCompletedCheckin:true,baseline:null,baselineDismissed:true,history:[]};store.terms.push(t);store.activeTermId=t.id;persist();showView('dashboard');toast('New term created.');}
   function download(name,content,mime){const blob=new Blob([content],{type:mime}),link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   const filenamePart=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   function exportJSON(){download('term-prep-backup.json',JSON.stringify(store,null,2)+'\n','application/json');toast('Backup exported.');}
   const csvCell=s=>`"${String(s??'').replace(/"/g,'""')}"`;
-  function exportCSV(){const t=currentTerm();const columns=['Term','Course','Title','Instructor','Syllabus','Import version','Due dates','Live sessions','Overall status','Canvas link','Notes'];const lines=[columns.map(csvCell).join(',')];t.courses.forEach(c=>lines.push([t.name,c.code,c.title,c.instructor,...FIELDS.map(f=>c.fields[f.key]),STATUS_DATA[statusFor(c)].label,c.canvas,c.notes].map(csvCell).join(',')));download(`${filenamePart(t.name)}-status.csv`,'\ufeff'+lines.join('\r\n'),'text/csv;charset=utf-8');toast('CSV exported.');}
-  async function importJSON(file){if(!file)return;if(file.size>3*1024*1024){toast('Backup exceeds the 3 MB size limit.');return;}try{const raw=JSON.parse(await file.text());if(!raw||!Array.isArray(raw.terms)||raw.terms.length<1){throw new Error('Invalid backup');}const terms=raw.terms.slice(0,50).map(normalizeTerm).filter(Boolean);if(!terms.length)throw new Error('No valid terms');reconcileSpring2027Roster(terms);if(!confirm(`Import ${terms.length} term(s)? This will replace the data saved in this browser. Export a backup first if needed.`))return;store={schemaVersion:1,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id,terms};persist();$('#course-search').value='';$('#directory-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Backup imported successfully.');}catch(e){toast('This file is not a valid Term Prep backup.');}finally{$('#import-file').value='';}}
+  function exportCSV(){const t=currentTerm();const columns=['Term','Course & Section','Title','Primary Instructor','Course Champion','Syllabus','Import version','Due dates','Live sessions','Overall status','Canvas link','Notes'];const lines=[columns.map(csvCell).join(',')];t.courses.forEach(c=>lines.push([t.name,c.code,c.title,c.instructor,c.champion||'',...FIELDS.map(f=>c.fields[f.key]),STATUS_DATA[statusFor(c)].label,c.canvas,c.notes].map(csvCell).join(',')));download(`${filenamePart(t.name)}-status.csv`,'\ufeff'+lines.join('\r\n'),'text/csv;charset=utf-8');toast('CSV exported.');}
+  async function importJSON(file){if(!file)return;if(file.size>3*1024*1024){toast('Backup exceeds the 3 MB size limit.');return;}try{const raw=JSON.parse(await file.text());if(!raw||!Array.isArray(raw.terms)||raw.terms.length<1){throw new Error('Invalid backup');}const terms=raw.terms.slice(0,50).map(normalizeTerm).filter(Boolean);if(!terms.length)throw new Error('No valid terms');reconcileSpring2027Roster(terms);ensureSpring2027SCM(terms);if(!confirm(`Import ${terms.length} term(s)? This will replace the data saved in this browser. Export a backup first if needed.`))return;store={schemaVersion:1,activeTermId:terms.some(t=>t.id===raw.activeTermId)?raw.activeTermId:terms[0].id,terms};persist();$('#course-search').value='';$('#directory-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Backup imported successfully.');}catch(e){toast('This file is not a valid Term Prep backup.');}finally{$('#import-file').value='';}}
 
   // Event wiring
   $$('.side-link').forEach(el=>el.addEventListener('click',()=>showView(el.dataset.view)));
   $('#mobile-menu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
-  $('#term-select').addEventListener('change',e=>{store.activeTermId=e.target.value;persist();render();});
+  $('#term-select').addEventListener('change',e=>switchTerm(e.target.value));
+  $('#term-quick-links').addEventListener('click',e=>{const item=e.target.closest('[data-term-id]');if(item)switchTerm(item.dataset.termId);});
   $('#new-term').addEventListener('click',addTerm);
   $('#start-checkin').addEventListener('click',()=>startCheckin());
   $('#course-search').addEventListener('input',()=>renderDashboard(currentTerm()));

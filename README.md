@@ -6,8 +6,8 @@ A simple, responsive term-prep dashboard for **Spring 2027 OMBA**, **Spring 2027
 
 - Separate program/term dashboards, selectable in the left sidebar. Spring 2027 OMBA has 15 courses; Spring 2027 SCM has 14 distinct course sections.
 - Dashboard with counts and a color-coded submission-progress bar.
-- Course table for syllabus, import version, due dates, and live sessions. Each course also has a separate primary instructor and course champion field.
-- **Start Check-in**: work through every course, answer four questions, and add instructor/ID notes.
+- Course table for syllabus, import version, **Course Calendar** (previously Due Dates), and live sessions; SCM alone also has **Yellowdig**. Each course has separate primary instructor and course champion fields.
+- **Start Check-in**: work through every course, answer four criteria in OMBA or five in SCM, and add instructor/ID notes.
 - Review screen, then **Finish Check-in & Update Dashboard** to recalculate all statuses.
 - Click a table row to start a check-in focused on that course.
 - Course directory to add or edit courses, instructors, and optional Canvas links.
@@ -22,11 +22,11 @@ The supplied starting dashboard preserves the **October 30, 2026 aggregate summa
 
 ## Course status rules
 
-- **Complete**: all four criteria are `Received`.
+- **Complete**: all applicable criteria are `Received` (four in OMBA, five in SCM).
 - **Partial**: any criterion is `Partially Submitted`, or the course has a mix of `Received` and `Missing`, and nothing is pending.
-- **None**: all four criteria are `Missing`.
+- **None**: all applicable criteria are `Missing`.
 - **To verify**: any criterion remains `Not checked` (or has a saved legacy `Clarify` status) unless every criterion is unchecked.
-- **Not checked**: all four criteria are unanswered.
+- **Not checked**: all applicable criteria are unanswered.
 
 Existing saved `N/A` and `Clarify` values remain readable so previous submissions are not silently changed. They are no longer available for new check-in selections; choose one of the three options the next time you review those fields.
 
@@ -69,3 +69,7 @@ The initial courses are in `seedRows` near the top of `app.js`. The Spring 2027 
 ## Spring 2027 SCM roster
 
 SCM has 14 separate course-section records, each with a primary instructor and course champion. CRNs and email addresses were intentionally excluded. No SCM submissions have been assumed: each field starts as "Not checked", and the dashboard shows these as needing review until the first check-in. On existing browsers, the SCM dashboard is added automatically without touching saved OMBA course data, notes, or check-in history. Both programs use the same check-in workflow and have independent progress and histories.
+
+## SCM Yellowdig and Course Calendar
+
+The **Due Dates** label has been renamed to **Course Calendar** across the OMBA and SCM dashboards, check-ins, and CSV exports. Its stored field key remains `dueDates` for compatibility with earlier check-ins. **Yellowdig** is an additional fifth criterion exclusively in SCM terms. Existing SCM check-ins receive an unanswered Yellowdig field when loaded; no previously entered submissions, notes, or check-in history are reset. OMBA remains at four criteria.

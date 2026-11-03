@@ -8,11 +8,12 @@ A simple, responsive term-prep dashboard for **Spring 2027 OMBA**, **Spring 2027
 - Dashboard with counts and a color-coded submission-progress bar.
 - Course table for syllabus, import version, **Course Calendar** (previously Due Dates), and live sessions; SCM alone also has **Yellowdig**. Each course has separate primary instructor and course champion fields.
 - **Start Check-in**: work through every course, answer four criteria in OMBA or five in SCM, and add instructor/ID notes.
+- **Single-course update**: click a course on the dashboard to edit only that course and use **Save Changes**. No next-course steps or full check-in review. Other courses remain untouched; the dashboard and history update immediately.
 - Review screen, then **Finish Check-in & Update Dashboard** to recalculate all statuses.
 - Click a table row to start a check-in focused on that course.
 - Course directory to add or edit courses, instructors, and optional Canvas links.
 - New terms, with an option to copy the existing course roster and reset submissions.
-- Check-in history for completed check-ins.
+- Check-in history for completed check-ins and individual course updates, labeled by course code.
 - Export/import a JSON backup, export a CSV report, and print the dashboard.
 - Responsive design for desktop and mobile; no analytics or third-party libraries.
 

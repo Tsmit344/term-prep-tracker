@@ -7,8 +7,8 @@
   <meta name="description" content="A term-preparation tracker with a guided course check-in workflow and live overview dashboard.">
   <title>Term Prep | Digital Learning</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=4">
-  <script src="app.js?v=4" defer></script>
+  <link rel="stylesheet" href="styles.css?v=5">
+  <script src="app.js?v=5" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -73,8 +73,8 @@
           <div class="section-heading section-heading-table"><div><h2>Complete Course Tracker</h2><p>Track every requirement and what is still outstanding.</p></div><button type="button" class="btn btn-outline" id="add-course"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add Course</button></div>
           <section class="card table-card" aria-label="All course submissions">
             <div class="table-toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 4.8 4.8"/></svg><input type="search" id="course-search" placeholder="Search courses or instructors…" aria-label="Search courses or instructors"></div><div class="table-controls"><label for="filter-status" class="sr-only">Filter by status</label><select id="filter-status"><option value="all">All statuses</option><option value="complete">Complete</option><option value="partial">Partial</option><option value="none">None</option><option value="verify">To verify</option><option value="unreviewed">Not checked</option></select></div></div>
-            <div class="table-overflow"><table class="course-table"><thead><tr><th>COURSE / INSTRUCTOR</th><th>SYLLABUS</th><th>IMPORT VERSION</th><th>DUE DATES</th><th>LIVE SESSIONS</th><th>STATUS</th><th aria-label="Open course check-in"></th></tr></thead><tbody id="course-tbody"></tbody></table></div>
-            <div class="table-footer"><span id="table-count">Showing 15 of 15 courses</span><span>✓ Received <span class="divider-dot">•</span> — Missing <span class="divider-dot">•</span> N/A Not required <span class="divider-dot">•</span> ? Clarify</span></div>
+            <div class="table-overflow"><table class="course-table"><thead id="course-thead"><tr><th>COURSE / INSTRUCTOR</th><th>SYLLABUS</th><th>IMPORT VERSION</th><th>COURSE CALENDAR</th><th>LIVE SESSIONS</th><th>STATUS</th><th aria-label="Open course check-in"></th></tr></thead><tbody id="course-tbody"></tbody></table></div>
+            <div class="table-footer"><span id="table-count">Showing 15 of 15 courses</span><span>✓ Received <span class="divider-dot">•</span> — Missing <span class="divider-dot">•</span> ◐ Partially Submitted</span></div>
           </section>
           <div class="bottom-note"><span>✦</span> At the end of each check-in, your overview and course-by-course status refresh automatically.</div>
         </div>

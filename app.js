@@ -155,7 +155,7 @@
   function normalizeTerm(t,i) {
     if (!t || typeof t !== 'object' || !Array.isArray(t.courses)) return null;
     const courses=t.courses.slice(0,200).map(normalizeCourse).filter(Boolean);
-    const hist=Array.isArray(t.history) ? t.history.slice(-100).filter(h=>h&&typeof h==='object').map(h=>({id:clamp(h.id||uid(),90),at:clamp(h.at,50),total:Number(h.total)||0,counts:Object.fromEntries(Object.keys(STATUS_DATA).map(k=>[k,Math.max(0,Number(h.counts?.[k])||0)]))})) : [];
+    const hist=Array.isArray(t.history) ? t.history.slice(-100).filter(h=>h&&typeof h==='object').map(h=>({id:clamp(h.id||uid(),90),at:clamp(h.at,50),total:Number(h.total)||0,mode:h.mode==='single'?'single':'all',courseCode:clamp(h.courseCode,80),counts:Object.fromEntries(Object.keys(STATUS_DATA).map(k=>[k,Math.max(0,Number(h.counts?.[k])||0)]))})) : [];
     return {id:clamp(t.id||uid(),90),name:clamp(t.name||`Term ${i+1}`,100),semester:clamp(t.semester||t.name,80),program:clamp(t.program,80),courses,createdAt:clamp(t.createdAt,50)||new Date().toISOString(),updatedAt:clamp(t.updatedAt,50)||new Date().toISOString(),hasCompletedCheckin:Boolean(t.hasCompletedCheckin),baselineDismissed:Boolean(t.baselineDismissed),baseline:t.baseline&&typeof t.baseline==='object' ? Object.fromEntries(Object.keys(STATUS_DATA).map(k=>[k,Math.max(0,Number(t.baseline[k])||0)])) : null,history:hist};
   }
   // Repair the original 15-course Spring 2027 starter roster without replacing
@@ -296,22 +296,87 @@
     $('#table-count').textContent=`Showing ${courses.length} of ${t.courses.length} courses`;
   }
   function renderDirectory(t){ const q=$('#directory-search').value.toLowerCase().trim();const courses=t.courses.filter(c=>`${c.code} ${c.title} ${c.instructor} ${c.champion||''}`.toLowerCase().includes(q));$('#directory-grid').innerHTML=courses.length ? courses.map(c=>`<button type="button" class="directory-card" data-edit-id="${escapeHTML(c.id)}"><div class="eyebrow" style="margin-bottom:0"><span class="eyebrow-line"></span> COURSE FILE</div><h3>${escapeHTML(c.code)}</h3>${c.title?`<p>${escapeHTML(c.title)}</p>`:''}<p style="margin-top:8px"><strong>Instructor:</strong> ${escapeHTML(c.instructor||'To confirm')}</p>${c.champion?`<p style="margin-top:5px"><strong>Course Champion:</strong> ${escapeHTML(c.champion)}</p>`:''}${statusBadge(statusFor(c))}</button>`).join(''):`<div class="empty-state">No matching courses.</div>`; }
-  function renderHistory(t){ const history=t.history.slice().reverse();$('#history-list').innerHTML=history.length?history.map((h,i)=>`<div class="history-item"><div><strong>${i===0?'Latest check-in':'Check-in'} · ${escapeHTML(dateLabel(h.at))}</strong><small>${escapeHTML(timestampLabel(h.at))} · ${h.total} courses</small></div><div class="history-totals"><span class="history-total">Complete <strong>${h.counts.complete||0}</strong></span><span class="history-total">Partial <strong>${h.counts.partial||0}</strong></span><span class="history-total">None <strong>${h.counts.none||0}</strong></span><span class="history-total">Verify <strong>${(h.counts.verify||0)+(h.counts.unreviewed||0)}</strong></span></div></div>`).join(''):`<div class="card empty-state">No check-ins recorded yet. Select <strong>Start Check-in</strong> to create the first one.<br><br>The October 30 baseline summary is not a course-by-course check-in.</div>`; }
+  function renderHistory(t){ const history=t.history.slice().reverse();$('#history-list').innerHTML=history.length?history.map((h,i)=>`<div class="history-item"><div><strong>${h.mode==='single'?'Course update':'Check-in'}${h.mode==='single'&&h.courseCode?' · '+escapeHTML(h.courseCode):''} · ${escapeHTML(dateLabel(h.at))}</strong><small>${escapeHTML(timestampLabel(h.at))} · ${h.total} courses tracked</small></div><div class="history-totals"><span class="history-total">Complete <strong>${h.counts.complete||0}</strong></span><span class="history-total">Partial <strong>${h.counts.partial||0}</strong></span><span class="history-total">None <strong>${h.counts.none||0}</strong></span><span class="history-total">Verify <strong>${(h.counts.verify||0)+(h.counts.unreviewed||0)}</strong></span></div></div>`).join(''):`<div class="card empty-state">No check-ins recorded yet. Select <strong>Start Check-in</strong> to create the first one.<br><br>The October 30 baseline summary is not a course-by-course check-in.</div>`; }
 
+  // Clicking a course opens a one-course update; the top button starts a full check-in.
   function startCheckin(courseId) {
-    const t=currentTerm();if(!t.courses.length){toast('Add a course before starting a check-in.');return;}
-    const index=courseId?t.courses.findIndex(c=>c.id===courseId):0;
-    wizard={termId:t.id,courses:clone(t.courses),index:Math.max(0,index)};
-    $('#wizard-backdrop').classList.remove('hidden');document.body.style.overflow='hidden';renderWizard();
+    const t=currentTerm();
+    if(!t.courses.length){toast('Add a course before starting a check-in.');return;}
+    const single=typeof courseId==='string' && courseId.length>0;
+    const index=single?t.courses.findIndex(c=>c.id===courseId):0;
+    if(index<0){toast('This course is no longer available.');return;}
+    wizard={termId:t.id,courses:clone(t.courses),index,mode:single?'single':'all',courseId:single?courseId:null};
+    $('#wizard-backdrop').classList.remove('hidden');
+    document.body.style.overflow='hidden';
+    renderWizard();
   }
-  function closeWizard() {if(wizard&&!confirm('Exit this check-in? Unsaved check-in answers will be discarded.'))return;wizard=null;$('#wizard-backdrop').classList.add('hidden');document.body.style.overflow='';}
-  function renderWizard(){if(!wizard)return;const length=wizard.courses.length,idx=wizard.index,summary=idx===length;const pct=summary?100:Math.round((idx+1)/length*100);$('#wizard-counter').textContent=summary?'Review & finish':`Course ${idx+1} of ${length}`;$('#wizard-subcounter').textContent=summary?'Confirm your results before updating the dashboard':'Review each requirement for this course';$('#wizard-percent').textContent=`${pct}%`;$('#wizard-progress-fill').style.width=`${pct}%`;$('#wizard-back').disabled=idx===0;$('#wizard-next').textContent=summary?'Finish Check-in & Update Dashboard':idx===length-1?'Review Check-in →':'Next Course →';$('#wizard-title').textContent=summary?'Check-in Summary':'Course Check-in';$('#wizard-footer-hint').textContent='Changes save when you finish the check-in.';
-    if(summary){const cnt=countsFrom(wizard.courses);const reviewCount=cnt.verify+cnt.unreviewed;$('#wizard-body').innerHTML=`<div class="review-summary"><div class="course-prefix" style="font-size:10px;letter-spacing:1.2px;color:var(--accent);font-weight:800;margin-bottom:12px">CHECK-IN COMPLETE</div><h3>Ready to refresh your dashboard?</h3><p>Here is the new overview based on your responses. Select Finish Check-in to save everything and regenerate the course tracker.</p><div class="review-totals">${[['Complete',cnt.complete,'var(--green)'],['Partial',cnt.partial,'var(--amber)'],['None',cnt.none,'var(--red)'],['To verify',reviewCount,'var(--blue)']].map(([label,count,color])=>`<div class="review-tile"><strong style="color:${color}">${count}</strong><span>${label}</span></div>`).join('')}</div>${reviewCount?`<div class="review-warning"><strong>${reviewCount} course(s) need follow-up.</strong> A course is marked “To verify” when a criterion is unanswered or still has an older clarification status. You can still finish the check-in.</div>`:''}<div class="review-list">${wizard.courses.map((c,i)=>`<div class="review-item"><span>${i+1}. <strong>${escapeHTML(c.code)}</strong></span>${statusBadge(statusFor(c))}</div>`).join('')}</div></div>`;return;}
-    const c=wizard.courses[idx];$('#wizard-body').innerHTML=`<div class="course-heading"><div class="course-prefix">${escapeHTML(c.code)}</div>${c.title?`<h3>${escapeHTML(c.title)}</h3>`:''}<p><strong>Instructor:</strong> ${escapeHTML(c.instructor||'Instructor not yet confirmed')}</p>${c.champion?`<p class="wizard-champion"><strong>Course Champion:</strong> ${escapeHTML(c.champion)}</p>`:''}</div><div class="field-grid">${fieldsForTerm(currentTerm()).map(f=>`<section class="field-card"><h4>${escapeHTML(f.label)}</h4><p>${escapeHTML(f.prompt)}</p><div class="field-options">${VALUES.map(v=>`<button type="button" class="field-option ${c.fields[f.key]===v.id?'selected':''}" data-field="${f.key}" data-answer="${v.id}" aria-pressed="${c.fields[f.key]===v.id}">${escapeHTML(v.label)}</button>`).join('')}</div></section>`).join('')}</div><div class="notes-area"><label for="checkin-notes">Instructor preferences / ID notes</label><textarea id="checkin-notes" maxlength="5000" placeholder="Example: Requested Summer 2026 parent course; need to confirm live session dates…">${escapeHTML(c.notes)}</textarea></div>`;
+  function closeWizard() {
+    if(wizard&&!confirm('Exit this check-in? Unsaved changes will be discarded.'))return;
+    wizard=null;
+    $('#wizard-backdrop').classList.add('hidden');
+    document.body.style.overflow='';
   }
-  function nextWizard() {if(!wizard)return;if(wizard.index<wizard.courses.length){wizard.index++;renderWizard();return;}const t=currentTerm();if(t.id!==wizard.termId){toast('Selected term changed. Check-in not saved.');return;}const now=new Date().toISOString();t.courses=wizard.courses;t.updatedAt=now;t.hasCompletedCheckin=true;t.baseline=null;const counts=countsFrom(t.courses);t.history.push({id:uid(),at:now,total:t.courses.length,counts});t.history=t.history.slice(-100);persist();wizard=null;$('#wizard-backdrop').classList.add('hidden');document.body.style.overflow='';$('#course-search').value='';$('#filter-status').value='all';showView('dashboard');toast('Check-in saved. Dashboard updated.');}
+  function renderWizard() {
+    if(!wizard)return;
+    const single=wizard.mode==='single';
+    const length=wizard.courses.length,idx=wizard.index,summary=!single&&idx===length;
+    const pct=single||summary?100:Math.round((idx+1)/length*100);
+    $('#wizard-counter').textContent=single?'Single-course update':summary?'Review & finish':`Course ${idx+1} of ${length}`;
+    $('#wizard-subcounter').textContent=single?'Update this course only':summary?'Confirm your results before updating the dashboard':'Review each requirement for this course';
+    $('#wizard-percent').textContent=`${pct}%`;
+    $('#wizard-progress-fill').style.width=`${pct}%`;
+    $('#wizard-back').classList.toggle('hidden',single);
+    $('#wizard-back').disabled=single||idx===0;
+    $('#wizard-next').textContent=single?'Save Changes':summary?'Finish Check-in & Update Dashboard':idx===length-1?'Review Check-in →':'Next Course →';
+    $('#wizard-title').textContent=single?'Update Course':summary?'Check-in Summary':'Course Check-in';
+    $('#wizard-footer-hint').textContent=single?'Only this course will be saved.':'Changes save when you finish the check-in.';
+    if(summary){
+      const cnt=countsFrom(wizard.courses),reviewCount=cnt.verify+cnt.unreviewed;
+      $('#wizard-body').innerHTML=`<div class="review-summary"><div class="course-prefix" style="font-size:10px;letter-spacing:1.2px;color:var(--accent);font-weight:800;margin-bottom:12px">CHECK-IN COMPLETE</div><h3>Ready to refresh your dashboard?</h3><p>Here is the new overview based on your responses. Select Finish Check-in to save everything and regenerate the course tracker.</p><div class="review-totals">${[['Complete',cnt.complete,'var(--green)'],['Partial',cnt.partial,'var(--amber)'],['None',cnt.none,'var(--red)'],['To verify',reviewCount,'var(--blue)']].map(([label,count,color])=>`<div class="review-tile"><strong style="color:${color}">${count}</strong><span>${label}</span></div>`).join('')}</div>${reviewCount?`<div class="review-warning"><strong>${reviewCount} course(s) need follow-up.</strong> A course is marked “To verify” when a criterion is unanswered or still has an older clarification status. You can still finish the check-in.</div>`:''}<div class="review-list">${wizard.courses.map((c,i)=>`<div class="review-item"><span>${i+1}. <strong>${escapeHTML(c.code)}</strong></span>${statusBadge(statusFor(c))}</div>`).join('')}</div></div>`;
+      return;
+    }
+    const c=wizard.courses[idx];
+    $('#wizard-body').innerHTML=`<div class="course-heading"><div class="course-prefix">${escapeHTML(c.code)}</div>${c.title?`<h3>${escapeHTML(c.title)}</h3>`:''}<p><strong>Instructor:</strong> ${escapeHTML(c.instructor||'Instructor not yet confirmed')}</p>${c.champion?`<p class="wizard-champion"><strong>Course Champion:</strong> ${escapeHTML(c.champion)}</p>`:''}</div><div class="field-grid">${fieldsForTerm(currentTerm()).map(f=>`<section class="field-card"><h4>${escapeHTML(f.label)}</h4><p>${escapeHTML(f.prompt)}</p><div class="field-options">${VALUES.map(v=>`<button type="button" class="field-option ${c.fields[f.key]===v.id?'selected':''}" data-field="${f.key}" data-answer="${v.id}" aria-pressed="${c.fields[f.key]===v.id}">${escapeHTML(v.label)}</button>`).join('')}</div></section>`).join('')}</div><div class="notes-area"><label for="checkin-notes">Instructor preferences / ID notes</label><textarea id="checkin-notes" maxlength="5000" placeholder="Example: Requested Summer 2026 parent course; need to confirm live session dates…">${escapeHTML(c.notes)}</textarea></div>`;
+  }
+  function finishCheckin(t, mode, courseCode='') {
+    const now=new Date().toISOString();
+    t.updatedAt=now;
+    t.hasCompletedCheckin=true;
+    t.baseline=null;
+    const counts=countsFrom(t.courses,t);
+    t.history.push({id:uid(),at:now,total:t.courses.length,counts,mode,courseCode});
+    t.history=t.history.slice(-100);
+    persist();
+    wizard=null;
+    $('#wizard-backdrop').classList.add('hidden');
+    document.body.style.overflow='';
+    $('#course-search').value='';
+    $('#filter-status').value='all';
+    showView('dashboard');
+    toast(mode==='single'?'Course changes saved. Dashboard updated.':'Check-in saved. Dashboard updated.');
+  }
+  function nextWizard() {
+    if(!wizard)return;
+    const t=currentTerm();
+    if(t.id!==wizard.termId){toast('Selected term changed. Changes not saved.');return;}
+    if(wizard.mode==='single') {
+      const updated=wizard.courses[wizard.index];
+      const currentIndex=t.courses.findIndex(c=>c.id===wizard.courseId);
+      if(currentIndex<0){toast('Course not found. Changes not saved.');return;}
+      t.courses[currentIndex]=updated;
+      finishCheckin(t,'single',updated.code);
+      return;
+    }
+    if(wizard.index<wizard.courses.length){
+      wizard.index++;
+      renderWizard();
+      return;
+    }
+    t.courses=wizard.courses;
+    finishCheckin(t,'all');
+  }
 
-  function openEditor(id){const t=currentTerm();const c=t.courses.find(x=>x.id===id);editorCourseId=id||null;$('#editor-title').textContent=c?'Edit Course':'Add Course';const f=$('#editor-form');f.elements.code.value=c?.code||'';f.elements.title.value=c?.title||'';f.elements.instructor.value=c?.instructor||'';f.elements.champion.value=c?.champion||'';f.elements.canvas.value=c?.canvas||'';$('#delete-course').classList.toggle('hidden',!c);$('#editor-backdrop').classList.remove('hidden');document.body.style.overflow='hidden';f.elements.code.focus();}
+    function openEditor(id){const t=currentTerm();const c=t.courses.find(x=>x.id===id);editorCourseId=id||null;$('#editor-title').textContent=c?'Edit Course':'Add Course';const f=$('#editor-form');f.elements.code.value=c?.code||'';f.elements.title.value=c?.title||'';f.elements.instructor.value=c?.instructor||'';f.elements.champion.value=c?.champion||'';f.elements.canvas.value=c?.canvas||'';$('#delete-course').classList.toggle('hidden',!c);$('#editor-backdrop').classList.remove('hidden');document.body.style.overflow='hidden';f.elements.code.focus();}
   function closeEditor(){editorCourseId=null;$('#editor-backdrop').classList.add('hidden');document.body.style.overflow='';}
   function saveEditor(e){e.preventDefault();const f=e.currentTarget,code=f.elements.code.value.trim(),title=f.elements.title.value.trim(),instructor=f.elements.instructor.value.trim(),champion=f.elements.champion.value.trim(),canvas=f.elements.canvas.value.trim();if(!code){toast('Course subject and number are required.');return;}if(canvas&&!/^https:\/\//i.test(canvas)){toast('Canvas URL must begin with https://');return;}const t=currentTerm();if(editorCourseId){const c=t.courses.find(x=>x.id===editorCourseId);if(c){Object.assign(c,{code,title,instructor,champion,canvas});}}else{t.courses.push({id:uid(),code,title,instructor,champion,canvas,fields:Object.fromEntries(SCM_FIELDS.map(f=>[f.key,'unreviewed'])),notes:''});}t.updatedAt=new Date().toISOString();persist();closeEditor();render();toast('Course saved.');}
   function deleteCourse(){if(!editorCourseId)return;const t=currentTerm();const c=t.courses.find(x=>x.id===editorCourseId);if(!c)return;if(!confirm(`Delete ${c.code} from ${t.name}? This also removes its submissions and notes.`))return;t.courses=t.courses.filter(x=>x.id!==editorCourseId);t.updatedAt=new Date().toISOString();if(t.baseline){t.baseline=null;t.hasCompletedCheckin=true;}persist();closeEditor();render();toast('Course deleted.');}
